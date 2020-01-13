@@ -68,3 +68,98 @@ def sys_time_to_local(self):
     return session_time
 
 
+def testing_loop(self, data, file):
+    while True:
+        self.initiate_session()
+
+        # Get location information from the Iridium modem
+        # long, lat, alt = get_location(plz)
+        # b.write(str(long) + ', ' + str(lat) + ', ' + str(alt) + '\n')
+        # print(long, lat, alt)
+
+        time.sleep(2)
+        sigQual = self.acquire_signal_quality()
+        # sys_time_to_local(plz)
+        print(sigQual)
+        file.write('Signal Qual:' + str(sigQual) + '\n')
+        if int(sigQual) >= 4:
+            print('Connection to Iridium Network')
+            self.queue_send_message(data)
+            self.initiate_session()
+        # print('location saved')
+
+
+def enable_radio(self):
+    self.acquire_response(b'AT*R1')
+    print('Radio Activity Enabled')
+
+
+def disable_radio(self):
+    self.acquire_response(b'AT*R0')
+    print('Radio Activity Disabled')
+
+def event_report(self):
+    a = self.acquire_response(b'AT+CIER=1,1,1,1,1')
+    a = self.acquire_response(b'AT')
+    a = a.decode('utf-8')
+    a = a.strip()
+    a = a.split('+')
+    for b in range(0, len(a)):
+        a[b] = a[b].strip()
+    print(a)
+    sig = a[1][-1]
+    if len(a) > 2:
+        location_details = a[4].split(',')
+        #print(location_details)
+        sat_num = location_details[1][-1]
+        beam_num = location_details[2]
+        location_indicator = location_details[3]
+        if location_indicator == 0:
+            print('bucc location')
+        elif location_indicator == 1:
+            print('iridium location')
+        x = int(location_details[4])
+        y = int(location_details[5])
+        z = int(location_details[6][0:5])
+        #print(sat_num, beam_num,location_indicator)
+        #print('Signal Strength: ' + sig)
+        #print(x, y, z)
+        if isinstance(x, int):
+            # 'geocent' refers to the geo-centered frame that the co-ordinates are returned in
+            inProj = Proj(proj='geocent', ellps='WGS84', datum='WGS84')
+
+            # 'latlong' is the frame to be converted to
+            outProj = Proj(proj='latlong', ellps='WGS84', datum='WGS84')
+
+            # Convert X, Y, Z to latitude, longitude and altitude
+            long, lat, alt = transform(inProj, outProj, x, y, z, radians=False)
+            # l = [str(long), str(lat), str(alt)]
+            print(long, lat, alt)
+            result = str(sig) + ' , ' + sat_num + ' , ' + beam_num + ' , ' + str(long), str(lat), str(alt)
+        return result
+    self.initiate_session()
+    print('message sent')
+
+def send_potA(self):
+    f = open("PoTA.txt", 'r') # This text should be a byte string that is to be sent through a SBD message
+    msg = f.read()
+    self.queue_send_message(msg)
+    self.initiate_session()
+
+def send_potB(self):
+    f = open("PoTB.txt", 'r') # This text should be a byte string that is to be sent through a SBD message
+    msg = f.read()
+    self.queue_send_message(msg)
+    self.initiate_session()
+
+def get_MT_msg(self):
+    a = self.acquire_response(b'AT+SBDSX')
+    b = a.decode()
+    c = b.strip()
+    d = c.split()
+    print(d)
+    if d[4] == 1:
+        g = self.acquire_response(b'AT+SBDRB')
+        print(g)
+    else:
+        print('No MT Message')
