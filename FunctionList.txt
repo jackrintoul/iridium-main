@@ -1,0 +1,12 @@
+Function List
+0: Signal Quality
+1: Initiate Session
+2: Enable Radio
+3: Disable Radio
+4: Get Location
+5: Get System Time
+6: Get Location, Time, Signal Qual
+7: Record Status Changes
+8: Test Loop
+9: Send Message A
+10: Send Message B
