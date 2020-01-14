@@ -9,8 +9,30 @@ from pyproj import Proj, transform
 import time
 import pyiridium9602
 
-TIME_BETWEEN_EPOCHS = 1425340800
-# get_location retrieves X, Y, X co-ordinates from the Iridium 9603 Modem and converts to lat, long.
+TIME_BETWEEN_EPOCHS = 1425398400
+
+
+def get_signal_qual(self):
+    initial_time = self.acquire_system_time()
+    signal_report = open("signal_reports/signal_report_%s.txt" % initial_time, 'w+')
+    for i in range(0, 3):  # Sets number of readings to record
+        sig = self.acquire_signal_quality()  # Retrieve signal quality
+        current_time = self.acquire_system_time()  # Retrieve system time
+        print(current_time)
+        # print('signal quality: ' + str(sig) + ' Time:' + str(current_time))
+        result_line = str(current_time) + '  ' + str(sig) + '\n'
+        signal_report.write(result_line)
+        time.sleep(1)  # Delay between recordings
+    signal_report.close()  # Close doc to save contents
+    report = open("signal_reports/signal_report_%s.txt" % initial_time, 'r')  # saves doc with first time signature
+    # report = open("signal_reports/signal_report_1989541564.txt", 'r')
+    msg = report.read()  # record contents of doc
+    hex_msg = msg.encode('utf-8')  # convert to hex to send
+    print(msg)
+    print(hex_msg)
+    self.queue_send_message(msg)  # Upload message to MO buffer
+    self.initiate_session()  # Clean MO buffer and send message
+    print('Message Sent')
 
 
 def initiate_modem():
@@ -24,6 +46,7 @@ def initiate_modem():
 
     plz.connect()  # Connect to modem
     return plz, b, PoTA
+
 
 def get_location(self):
     # h = b'\r\nAT-MSGEO\r\r\n-MSGEO: -3936,3464,-3612,7402d50c\r\n\r\n'
@@ -55,7 +78,7 @@ def get_location(self):
 # The time since epoch is given as a count of 0.09s (90ms) increments.
 
 
-def sys_time_to_local(self):
+def sys_time_to_local(self):  # Convert Iridium system time to local time - probably should be done on the ground
     session_time = 0
     epoch_time = self.request_system_time()  # Time since Iridium epoch (in 0.09s increments)
     if isinstance(epoch_time, int):  # If Iridium network is unavailable, the result will be None
@@ -69,7 +92,7 @@ def sys_time_to_local(self):
 
 
 def testing_loop(self, data, file):
-    while True:
+    for i in range(0, 10):
         self.initiate_session()
 
         # Get location information from the Iridium modem
@@ -89,28 +112,30 @@ def testing_loop(self, data, file):
         # print('location saved')
 
 
-def enable_radio(self):
+def enable_radio(self):  # Allows the Iridium modem to transmit signals
     self.acquire_response(b'AT*R1')
     print('Radio Activity Enabled')
 
 
-def disable_radio(self):
+def disable_radio(self):  # Prevents the Iridium modem from sending signals
     self.acquire_response(b'AT*R0')
     print('Radio Activity Disabled')
 
+
 def event_report(self):
-    a = self.acquire_response(b'AT+CIER=1,1,1,1,1')
-    a = self.acquire_response(b'AT')
+    a = self.acquire_response(b'AT+CIER=1,1,1,1,1')  # Activates all fields for event reporting
+    a = self.acquire_response(b'AT')  # Recieve response
     a = a.decode('utf-8')
     a = a.strip()
     a = a.split('+')
+    time_stamp = self.acquire_system_time()
     for b in range(0, len(a)):
         a[b] = a[b].strip()
     print(a)
     sig = a[1][-1]
     if len(a) > 2:
         location_details = a[4].split(',')
-        #print(location_details)
+        # print(location_details)
         sat_num = location_details[1][-1]
         beam_num = location_details[2]
         location_indicator = location_details[3]
@@ -121,9 +146,9 @@ def event_report(self):
         x = int(location_details[4])
         y = int(location_details[5])
         z = int(location_details[6][0:5])
-        #print(sat_num, beam_num,location_indicator)
-        #print('Signal Strength: ' + sig)
-        #print(x, y, z)
+        # print(sat_num, beam_num,location_indicator)
+        # print('Signal Strength: ' + sig)
+        # print(x, y, z)
         if isinstance(x, int):
             # 'geocent' refers to the geo-centered frame that the co-ordinates are returned in
             inProj = Proj(proj='geocent', ellps='WGS84', datum='WGS84')
@@ -136,9 +161,14 @@ def event_report(self):
             # l = [str(long), str(lat), str(alt)]
             print(long, lat, alt)
             result = str(sig) + ' , ' + sat_num + ' , ' + beam_num + ' , ' + str(long), str(lat), str(alt)
-        return result
+        f = open("%s.txt" % time_stamp, 'w+')
+        data_str = str(time_stamp) + str(result)
+        print(result)
+        f.write(data_str)
+
     self.initiate_session()
     print('message sent')
+
 
 def send_potA(self):
     f = open("PoTA.txt", 'r') # This text should be a byte string that is to be sent through a SBD message
@@ -146,11 +176,13 @@ def send_potA(self):
     self.queue_send_message(msg)
     self.initiate_session()
 
+
 def send_potB(self):
     f = open("PoTB.txt", 'r') # This text should be a byte string that is to be sent through a SBD message
     msg = f.read()
     self.queue_send_message(msg)
     self.initiate_session()
+
 
 def get_MT_msg(self):
     a = self.acquire_response(b'AT+SBDSX')
@@ -163,3 +195,10 @@ def get_MT_msg(self):
         print(g)
     else:
         print('No MT Message')
+
+
+def loc_sig_time(self):
+    lat, long, alt = get_location(self)
+    sig = self.acquire_signal_quality()
+    local_time = self.acquire_system_time(self)
+    print(str(local_time) + ', ' + 'signal:' + str(sig) + ' location: ' + str(lat), str(long), str(alt))

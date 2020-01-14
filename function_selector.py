@@ -16,7 +16,7 @@ ser.connect()
 
 
 
-def read_kbd_input(inputQueue):
+def read_kbd_input(inputQueue): # Establish queue that will read keyboard inputs
     print('Ready for keyboard input:')
 
     while (True):
@@ -39,10 +39,10 @@ def main():
             if len(input_str) < 3:
                 func_code = int(input_str)
             else:
-                func_code = 100
+                func_code = 100  # Prevent 'variable accessed before assignment' error
             #print("input_str = {}".format(input_str))
 
-            if input_str == MENU:
+            if input_str == MENU:  # Show list of functions with function code
                 menu = open('FunctionList.txt', 'r')
                 options = menu.readlines()
                 for a in options:
@@ -54,71 +54,46 @@ def main():
                 break
 
             if func_code == 0:
-                # Open a txt document to record signal strength and system time
-                initial_time = ser.acquire_system_time()
-                signal_report = open("signal_reports/signal_report_%s.txt" % initial_time, 'w+')
-                for i in range(0, 3):
-                    sig = ser.acquire_signal_quality()
-                    current_time = ser.acquire_system_time()
-                    print(current_time)
-                    #print('signal quality: ' + str(sig) + ' Time:' + str(current_time))
-                    result_line = str(current_time) + '  ' + str(sig) + '\n'
-                    signal_report.write(result_line)
-                    time.sleep(1)
-                signal_report.close()
-                #report = open("signal_reports/signal_report_%s.txt" % initial_time, 'r')
-                report = open("signal_reports/signal_report_1989541564.txt", 'r')
-                msg = report.read()
-                hex_msg = msg.encode('utf-8')
-                print(msg)
-                print(hex_msg)
-                ser.queue_send_message(msg)
-                ser.initiate_session()
-                print('Message Sent')
+                # Creates a text document with a list of time stamps and signal qualities,
+                # and sends a SBD message with contents
+                get_signal_qual(ser)
+                print('Signal Quality Recorded')
 
             if func_code == 1:
-                ser.initiate_session()
+                ser.initiate_session()  # Send MO messages and Retrieve MT messages
                 print('Session Initiated')
 
-            if func_code == 2:
+            if func_code == 2:  # Enable radio activity
                 enable_radio(ser)
 
-            if func_code == 3:
+            if func_code == 3:  # Disable radio activity
                 disable_radio(ser)
 
-            if func_code == 4:
+            if func_code == 4: # Returns the latitude, longitude and altitude of the modem
                 lat, long, alt = get_location(ser)
                 print(lat, long, alt)
 
             if func_code == 5:
-                local_time = ser.acquire_system_time()
+                local_time = ser.acquire_system_time()  # Returns the Iridium system time
                 print(local_time)
 
-            if func_code == 6:
-                lat, long, alt = get_location(ser)
-                sig = ser.acquire_signal_quality()
-                local_time = ser.acquire_system_time(ser)
-                print(str(local_time) + ', ' + 'signal:' + str(sig) + ' location: ' + str(lat), str(long), str(alt))
+            if func_code == 6:  # Returns location, signal quality and time in a document - under development
+                loc_sig_time(ser)
 
-            if func_code == 7:
-                local_time = sys_time_to_local(ser)
-                result = event_report(ser)
-                f = open("%s.txt" % local_time, 'w+')
-                data_str = str(local_time) + str(result)
-                print(result)
-                f.write(data_str)
+            if func_code == 7:  # Returns info on satellite in view, beam and signal quality. Needs work
+                event_report(ser)
 
-            if func_code == 8:
+            if func_code == 8:  # Runs a testing loop and records a doc
                 f = open('testing.txt', 'w+')
                 testing_loop(ser, 'Message to Send', f)
 
-            if func_code == 9:
+            if func_code == 9:  # Sends the data contained in a defined file
                 send_potA(ser)
 
-            if func_code == 10:
+            if func_code == 10:  # Sends the data contained in a defined file
                 send_potB(ser)
 
-            if func_code == 11:
+            if func_code == 11:  # Retrieves a message from the MT buffer
                 get_MT_msg(ser)
 
 
