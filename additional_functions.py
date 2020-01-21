@@ -91,6 +91,11 @@ def sys_time_to_local(self):  # Convert Iridium system time to local time - prob
     return session_time
 
 
+def system_time(self):
+    sys_time = self.acquire_system_time()
+    return sys_time
+
+
 def testing_loop(self, data, file):
     for i in range(0, 10):
         self.initiate_session()
