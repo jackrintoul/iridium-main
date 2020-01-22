@@ -16,8 +16,12 @@ from optparse_functions import *
 import time
 from optparse import OptionParser
 
+ser = pyiridium9602.IridiumCommunicator('/dev/ttyUSB0')
+ser.timeout = 5
+ser.connect()
 
-def data_loop(self, port_name, iterations, delay, sig, location, record, send):
+
+def data_loop(self, iterations, delay, sig, location):
     """Establishes the modem and records specified data
 
     Parameters:
@@ -38,20 +42,17 @@ def data_loop(self, port_name, iterations, delay, sig, location, record, send):
         Send results as an Iridium SBD message
     """
 
-    ser = pyiridium9602.IridiumCommunicator(port_name)
-    ser.timeout = 5
-    ser.connect()
-
     result = []
     for i in range(iterations):
         a = []
-        if sig:
+        if sig is True:
             a.append(str(signal_qual(ser)) + ' ')
-        if location:
+        if location is True:
             a.append(str(get_location(ser)) + ' ')
         a.append(str(sys_time(ser)) + '\n')
         result.append(a)
         time.sleep(delay)
+    print(result)
     return result
 
 
@@ -62,8 +63,8 @@ def main():
     parser.set_default('delay', 1)
 
     parser.add_option('-p', dest='port_name', type='string', help='specify the port to connect to the modem')
-    parser.add_option('-i', dest='iterations', type='int', help='specify the number of data points to record')
-    parser.add_option('-d', dest='delay', type='int', help='specify the time between each data point in seconds')
+    parser.add_option('-i', dest='iterations', type='int', default='5', help='specify the number of data points to record')
+    parser.add_option('-d', dest='delay', type='int', default='10', help='specify the time between each data point in seconds')
     parser.add_option('-s', dest='sig', action='store_true', default=False, help='activate to record signal quality')
     parser.add_option('-l', dest='location', action='store_true', default=False, help='activate to record location')
     parser.add_option('-t', dest='time', action='store_true', default=False, help='activate to system_time')
@@ -72,14 +73,14 @@ def main():
 
     (options, args) = parser.parse_args()
 
-    result = data_loop(ser, options.iterations, options.delay, options.sig,
-                         options.location, options.filename, options.send)
+    result = data_loop(options.iterations, options.delay, options.sig,
+                         options.location, options.filename)
 
     if options.filename:
         for i in range(options.iterations):
-            f = open(options.txt, "a")
+            f = open(options.filename, "a")
             f.write(str(result))
-            print('This is the result: ' + result)
+        print('This is the result: ' + str(result))
 
     if options.send is not None:
         ser.queue_send_message(result)
